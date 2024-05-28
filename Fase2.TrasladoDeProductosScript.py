@@ -31,8 +31,6 @@ siteAprovisionamiento = Site('https://sunshinebouquet1.sharepoint.com/sites/apro
 siteDBLogistics = Site('https://sunshinebouquet1.sharepoint.com/sites/CosteodeTransporte',version=Version.v2019, authcookie=authcookie)
 siteMatEmpaque = Site('https://sunshinebouquet1.sharepoint.com/sites/MatEmpaque',version=Version.v2019, authcookie=authcookie)
 
-print("Funciona perra")
-
 
 def get_excel_sh(site, folder1:str,folder2:str, namefile:str, sheetname:str,typeFolder:int):
 #'Función para leer Excel Online Sharepoint'

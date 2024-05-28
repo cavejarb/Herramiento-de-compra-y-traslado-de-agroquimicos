@@ -24,6 +24,8 @@ row_limit = 5000
 authcookie = Office365('https://sunshinebouquet1.sharepoint.com/', username='scastro@sunshinebouquet.com', password='CCyl3uwWUK6ZD6sf').GetCookies()
 siteAprovisionamiento = Site('https://sunshinebouquet1.sharepoint.com/sites/aprovisionamiento',version=Version.v2019, authcookie=authcookie)
 
+print("Git me lo mama debajo de la cama")
+
 def get_excel_sh(site, folder1:str,folder2:str, namefile:str, sheetname:str,typeFolder:int):
 #'Función para leer Excel Online Sharepoint'
     if typeFolder ==1:
