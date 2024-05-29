@@ -29,7 +29,9 @@ site = Site('https://sunshinebouquet1.sharepoint.com/sites/aprovisionamiento',ve
 siteDBLogistics = Site('https://sunshinebouquet1.sharepoint.com/sites/CosteodeTransporte',version=Version.v2019, authcookie=authcookie)
 siteMatEmpaque = Site('https://sunshinebouquet1.sharepoint.com/sites/MatEmpaque',version=Version.v2019, authcookie=authcookie)
 
-print("Lo que sea")
+print("--------------Bienvenido a la herramienta de compra y traslado de agroquímicos--------------------")
+
+print("Cambio #2")
 def readExcel(path,sheet):
     a = pd.read_excel(os.path.dirname(__file__)+f'\\{path}.xlsx',sheet)
     return a
