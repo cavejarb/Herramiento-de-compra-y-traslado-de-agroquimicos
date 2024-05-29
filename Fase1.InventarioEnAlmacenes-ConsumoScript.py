@@ -30,8 +30,6 @@ siteDBLogistics = Site('https://sunshinebouquet1.sharepoint.com/sites/CosteodeTr
 siteMatEmpaque = Site('https://sunshinebouquet1.sharepoint.com/sites/MatEmpaque',version=Version.v2019, authcookie=authcookie)
 
 print(1)
-print(2)
-print(3)
 def readExcel(path,sheet):
     a = pd.read_excel(os.path.dirname(__file__)+f'\\{path}.xlsx',sheet)
     return a
