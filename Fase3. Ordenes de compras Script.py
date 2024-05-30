@@ -199,6 +199,7 @@ demanda = demanda.sort_values(by = ['Bodega','SisFinCode'], ascending = [True,Tr
 
 necesidadCompraFinal = pd.DataFrame()
 indice = 0
+listaItemsConDeficienciasNegociacion = []
 while indice<len(demanda):
     inventarioTotal = demanda['Necesidad de compra (inv) UMCompras'][indice]
     inventarioFaltantePorSuplir = inventarioTotal.copy()
@@ -247,16 +248,28 @@ while indice<len(demanda):
     
     if len(baseCotizacionesFiltrado)<=2:
         baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,baseCotizacionesFiltradoCopia,how='inner',left_on= ['Inventario abastecido','ColumnaOrden'], right_on= ['Inventario abastecido','ColumnaOrden'])
+    baseCotizacionesFiltrado = baseCotizacionesFiltrado.sort_values(by = ['ColumnaOrden'], ascending = [True],ignore_index=True )    
     baseCotizacionesFiltrado = baseCotizacionesFiltrado.reset_index()
     observacion = baseCotizacionesFiltrado['Observaciones'][0]
     indice2 = 0
     inventarioSuplido = 0
-    baseCotizacionesFiltrado = baseCotizacionesFiltrado.sort_values(by = ['ColumnaOrden'], ascending = [True],ignore_index=True )
+    #baseCotizacionesFiltrado = baseCotizacionesFiltrado.reset_index()
 
-    #if item == 1160:
-    #    create_excel(baseCotizacionesFiltrado,"BaseCotizaciones","Hoja1")
-    #    exit()
-
+        #Generar las listas de productos con deficiencia de negociación
+    factoresConversion = baseCotizacionesFiltrado['Factor conversión'].tolist()
+    if len(factoresConversion)>=2:
+        primeraUnidad = factoresConversion[0]
+        i = 1
+        while i<len(factoresConversion):
+            siguienteUnidad = factoresConversion[i]
+            if siguienteUnidad>primeraUnidad:
+                if item in listaItemsConDeficienciasNegociacion:
+                    break
+                listaItemsConDeficienciasNegociacion.append(item)
+                break
+            primeraUnidad = siguienteUnidad
+            i+=1
+            
     while indice2<len(baseCotizacionesFiltrado): 
         if inventarioSuplido>=inventarioTotal or inventarioFaltantePorSuplir == 0:
             break
@@ -406,7 +419,6 @@ demanda['Precio Actual Compra 3'] = demanda['Precio Actual Compra 3'].fillna(0)
 demanda['Razón social proveedor'] = np.where(demanda['Razón social proveedor 2'] != 0,demanda['Razón social proveedor 2'],demanda['Razón social proveedor'])
 demanda['Precio Actual Compra'] = np.where(demanda['Precio Actual Compra 3'] != 0,demanda['Precio Actual Compra 3'],demanda['Precio Actual Compra'])
 
-#demanda = demanda[demanda["Observaciones"] == "0"] #Esto ya no debe ir porque las observaciones ya se verificaron
 demanda = demanda.groupby(['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Concatenado'],as_index=False).agg({'Unidades de compra':'sum','Costo compra total':'sum','Inventario suplido':'sum'})
 demanda = demanda[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
 demanda = demanda.sort_values(by = ['Bodega','SisFinCode','Factor conversión'], ascending = [True,True,False],ignore_index=True )
@@ -425,6 +437,8 @@ listBodegas.append(listBodegasAndrea)
 listBodegas.append(listBodegasClaudia)
 listBodegas.append(listBodegasSandro)
 
+print(f'Productos con deficiencia de negocicación: {listaItemsConDeficienciasNegociacion}')
+
 for i in listBodegas:
     for j in i:
         demandaFiltradaPorBodega = demanda[demanda["Bodega - Descripción"] == j]
@@ -436,6 +450,7 @@ for i in listBodegas:
             file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/{asignacion}',j)
         else:
             file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales/{asignacion}',j)
+
 #Time
 producto = f'Fase 3: Generación de ordenes de compras'
 elapsed_time = time() - start_time

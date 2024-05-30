@@ -31,7 +31,6 @@ siteMatEmpaque = Site('https://sunshinebouquet1.sharepoint.com/sites/MatEmpaque'
 
 print("--------------Bienvenido a la herramienta de compra y traslado de agroquímicos--------------------")
 
-print("Cambio #2")
 def readExcel(path,sheet):
     a = pd.read_excel(os.path.dirname(__file__)+f'\\{path}.xlsx',sheet)
     return a
@@ -332,6 +331,7 @@ consumos.rename(columns = {'Cantidad':f'Consumo Semana ({semana})','Inventario':
 consumos['SisFinCode'] = consumos['SisFinCode'].fillna(0)
 consumos['SisFinCode'] = np.where(consumos['SisFinCode'] == 0,consumos['Código'],consumos['SisFinCode'])
 
+create_excel(consumos,"Consumos","Hoja1")
 
 consumosCopiaUM = consumos.copy()
 consumosCopiaUM = consumosCopiaUM.drop_duplicates(subset=['SisFinCode'])
@@ -595,7 +595,6 @@ create_excel(trasladosPunta,"Productos para traslado IN021","Hoja1")
 #    print(f'Hay errores con los archivos de: {excelesConErrores}. Verifique que los códigos de bodega de la carpeta de "Inventario en almacenes" correspondan al nombre del archivo')
 
 # Upload data to sharepoint
-exit()
 if adicionales==1:
     file_upload_to_sharepoint(siteDBLogistics,año,semanaInventario,f"OfertaDemandaSemana{semanaInventario}",2)
     file_upload_to_sharepoint(site,año,semanaInventario,"Inventario disponible-faltante",1)
