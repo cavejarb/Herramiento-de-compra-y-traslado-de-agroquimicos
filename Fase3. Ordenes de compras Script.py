@@ -437,7 +437,25 @@ listBodegas.append(listBodegasAndrea)
 listBodegas.append(listBodegasClaudia)
 listBodegas.append(listBodegasSandro)
 
-print(f'Productos con deficiencia de negocicación: {listaItemsConDeficienciasNegociacion}')
+#------Reporte de productos con posibilidades de mejora en negociación
+reporteDefectosNegociacion = demanda[demanda['SisFinCode'].isin(listaItemsConDeficienciasNegociacion)]
+reporteDefectosNegociacion = pd.merge(reporteDefectosNegociacion,baseCotizaciones[['Item','Razón social proveedor','U.M.']],how='inner',left_on= ['SisFinCode','Razón social proveedor'], right_on= ['Item','Razón social proveedor'])
+conteoFilas = reporteDefectosNegociacion.groupby(['Bodega','SisFinCode','Razón social proveedor']).size().reset_index(name='Conteo')
+reporteDefectosNegociacion = pd.merge(reporteDefectosNegociacion,conteoFilas,how='left',left_on= ['Bodega','SisFinCode', 'Razón social proveedor'], right_on= ['Bodega','SisFinCode','Razón social proveedor'])
+reporteDefectosNegociacion = reporteDefectosNegociacion[reporteDefectosNegociacion["Conteo"] > 1]
+reporteDefectosNegociacion = reporteDefectosNegociacion[reporteDefectosNegociacion['UM Compras'] == reporteDefectosNegociacion['U.M.']]
+reporteDefectosNegociacion = reporteDefectosNegociacion.sort_values(by = ['SisFinCode','Bodega'], ascending = [True,True],ignore_index=True )
+
+reporteDefectosNegociacionValoresUnicos = reporteDefectosNegociacion.drop_duplicates(subset=['SisFinCode'])
+listaDefectosNegociacion = reporteDefectosNegociacion['SisFinCode'].tolist()
+baseProductosDefectosNegociacion = baseCotizaciones[baseCotizaciones['Item'].isin(listaDefectosNegociacion)]
+baseProductosDefectosNegociacion['Valor unitario'] = baseProductosDefectosNegociacion['Precio Actual Compra'].fillna(0) / baseProductosDefectosNegociacion['Factor conversión'].fillna(0) 
+
+reporteDefectosNegociacion = reporteDefectosNegociacion[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Razón social proveedor','UM Compras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Asignación']]
+baseProductosDefectosNegociacion = baseProductosDefectosNegociacion[['Item','Desc. item','Razón social proveedor','U.M.','Precio Actual Compra','UM Inv','Factor conversión','Valor unitario']]
+
+create_excel(reporteDefectosNegociacion,"Hallazgos precios de productos",f"Compras semana {semanaExtraccionArchivos}")
+create_sheet(baseProductosDefectosNegociacion,'Hallazgos precios de productos','Base productos con hallazgos')
 
 for i in listBodegas:
     for j in i:
