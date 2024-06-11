@@ -67,10 +67,10 @@ def separarProductosNoEncontradosAgotados(df,columnaFiltro,nombreExportableExcel
     listProductosNoEncontradosAgotados =  list(pd.unique(dfFiltrado["Producto"]))
     dfFiltrado.drop(['Producto'], inplace=True, axis=1)
     create_excel(dfFiltrado,nombreExportableExcel,"Hoja1")
-    if adicionales==1:
-        file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}',nombreExportableExcel)
-    else:
-        file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales',nombreExportableExcel)
+    #if adicionales==1:
+    #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}',nombreExportableExcel)
+    #else:
+    #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales',nombreExportableExcel)
     print(f'Productos no encontrados o agotados : {listProductosNoEncontradosAgotados}. Revisar la base de cotizaciones "Base Agroquímicos" o en la hoja "Unidades compra" del excel "Diccionario"')
     if tipo == 1: df = df[df[columnaFiltro].isnull()]
     else: df = df.dropna(subset=[columnaFiltro])
@@ -154,6 +154,15 @@ if semanaExtraccionArchivos%2==1:
 else:
     demanda['Inventario Necesidad'] = demanda[f'Cierre Semana ({semanaConsumo})']
 
+productosHomologos = get_excel_sh(siteAprovisionamiento,'Agroquímicos','','Diccionarios.xlsx','Productos homólogos',2)
+demandaCopia = pd.merge(demanda,productosHomologos[['Item descontinuado','Item homólogo']],how='left',left_on= ['SisFinCode'], right_on= ['Item descontinuado'])
+demandaCopia['SisFinCode'] = demandaCopia.apply(lambda row: row['Item homólogo'] if pd.notnull(row['Item homólogo']) else row['SisFinCode'], axis=1)
+demandaCopia =  demandaCopia.groupby(['Bodega','SisFinCode'],as_index=False).agg({'Inventario Necesidad':'sum'})
+demandaCopia.rename(columns = {'Inventario Necesidad':'Inventario Necesidad Final'}, inplace = True)
+demanda = pd.merge(demanda,demandaCopia,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
+listHomologos =  list(pd.unique(productosHomologos["Item homólogo"]))
+for i in listHomologos: demanda['Inventario Necesidad'] = np.where(demanda['SisFinCode'] == i,demanda['Inventario Necesidad Final'],demanda['Inventario Necesidad'])
+
 demanda['Necesidad de compra (inv)'] = demanda[f"Inventario Necesidad"] + demanda['Inventario de Traslado'].fillna(0) + demanda['Inventario de Traslado IN021'].fillna(0)
 demanda = demanda[demanda[f"Necesidad de compra (inv)"] < 0]
 demanda['Quimico'] = demanda['Quimico'].str.upper()
@@ -192,7 +201,6 @@ demanda['Necesidad de compra (inv)'] = np.where(demanda['Necesidad de compra (in
 demanda['Producto'] = demanda["SisFinCode"].astype(str) + demanda['Quimico']
 
 #------------Productos agotados y no encontrados
-#demanda = separarProductosNoEncontradosAgotados(demanda,"Agotado","Productos agotados",1)
 demanda = separarProductosNoEncontradosAgotados(demanda,"UM Inv","Productos no encontrados",2,adicionales)
 demanda['Necesidad de compra (inv) UMCompras'] = np.where(demanda['Uni'] != demanda['UM Inv'], demanda['Necesidad de compra (inv)']*demanda['Dens'] ,demanda['Necesidad de compra (inv)'])
 demanda = demanda.sort_values(by = ['Bodega','SisFinCode'], ascending = [True,True],ignore_index=True )
@@ -330,7 +338,6 @@ while indice<len(demanda):
         indice2+=1
     indice+=1
     
-#necesidadCompraFinal = necesidadCompraFinal.groupby(['Item', 'U.M.', 'Precio Actual Compra', 'Desc. item', 'Razón social proveedor', 'Autorizado', 'Agotado', 'Observaciones', 'UM Compras', 'Descripción UMCompras', 'UM Inv', 'Factor conversión', 'Concatenado', 'Bodega', 'Necesidad inventario', 'ColumnaOrden', 'Inventario abastecido'],as_index=False).agg({'Unidades de compra':'sum'})
 demanda = pd.merge(demanda,necesidadCompraFinal,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','Item'])
 demanda['Costo compra total'] = demanda['Precio Actual Compra'] * demanda['Unidades de compra']
 demanda['Inventario suplido'] = demanda['Factor conversión'] * demanda['Unidades de compra']
@@ -406,12 +413,10 @@ demanda['Precio Actual Compra 3'] = demanda['Precio Actual Compra 3'].fillna(0)
 demanda['Razón social proveedor'] = np.where(demanda['Razón social proveedor 2'] != 0,demanda['Razón social proveedor 2'],demanda['Razón social proveedor'])
 demanda['Precio Actual Compra'] = np.where(demanda['Precio Actual Compra 3'] != 0,demanda['Precio Actual Compra 3'],demanda['Precio Actual Compra'])
 
-#demanda = demanda[demanda["Observaciones"] == "0"] #Esto ya no debe ir porque las observaciones ya se verificaron
 demanda = demanda.groupby(['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Concatenado'],as_index=False).agg({'Unidades de compra':'sum','Costo compra total':'sum','Inventario suplido':'sum'})
 demanda = demanda[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
 demanda = demanda.sort_values(by = ['Bodega','SisFinCode','Factor conversión'], ascending = [True,True,False],ignore_index=True )
 demanda = pd.merge(demanda,diccionarioFincas[['Bodega','Asignación','Bodega - Descripción']],how='left',left_on= ['Bodega'], right_on= ['Bodega'])
-
 
 demandaAndrea = demanda[demanda["Asignación"] == "Andrea Navarrete"]
 demandaClaudia = demanda[demanda["Asignación"] == "Claudia Quiroga"]
@@ -432,10 +437,10 @@ for i in listBodegas:
         asignacion = demandaFiltradaPorBodega["Asignación"][0]
         demandaFiltradaPorBodega = demandaFiltradaPorBodega[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
         create_excel(demandaFiltradaPorBodega,j,"Hoja1")
-        if adicionales==1:
-            file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/{asignacion}',j)
-        else:
-            file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales/{asignacion}',j)
+        #if adicionales==1:
+        #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/{asignacion}',j)
+        #else:
+        #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales/{asignacion}',j)
 #Time
 producto = f'Fase 3: Generación de ordenes de compras'
 elapsed_time = time() - start_time

@@ -168,6 +168,7 @@ archivoPlano['Concatenado'] = archivoPlano["Bodega"] + archivoPlano['Razón soci
 archivoPlano = archivoPlano.sort_values(by = ['Bodega','Razón social proveedor','SisFinCode'], ascending = [True,True,True],ignore_index=True )
 archivoPlanoCopia = archivoPlano.copy()
 
+
 #------Ajustar los biológicos (los odio fucking bichos)
 listBichitos = [3868,4709,6602,7484,7485,7731,8056,8057,8653,10941]
 if semana%2==1:
@@ -176,12 +177,12 @@ if semana%2==1:
     else:
         inventarioFaltante = get_excel_sh(siteAprovisionamiento,año,f'Semana{semana}','Adicionales','Inventario disponible-faltante.xlsx','Hoja1',3)
     
-    inventarioFaltante = inventarioFaltante[inventarioFaltante['SisFinCode'].isin(listBichitos)]
-    inventarioFaltante = inventarioFaltante[inventarioFaltante["Semanas de abastecimiento"] == 2]
-    inventarioFaltante.rename(columns = {f'Consumo Semana ({semana+2})':f'{semana+2}', f'Consumo Semana ({semana+3})':f'{semana+3}'}, inplace = True)
-    inventarioFaltante = inventarioFaltante.melt(id_vars=['Bodega','SisFinCode'], value_vars=[f'{semana+2}', f'{semana+3}'], var_name='Semana', value_name='Consumo')
-    inventarioFaltante[['Semana']] = inventarioFaltante[["Semana"]].astype(int)
-    archivoPlano = pd.merge(archivoPlano,inventarioFaltante,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
+    inventarioFaltanteBiologicos = inventarioFaltante[inventarioFaltante['SisFinCode'].isin(listBichitos)]
+    inventarioFaltanteBiologicos = inventarioFaltanteBiologicos[inventarioFaltanteBiologicos["Semanas de abastecimiento"] == 2]
+    inventarioFaltanteBiologicos.rename(columns = {f'Consumo Semana ({semana+2})':f'{semana+2}', f'Consumo Semana ({semana+3})':f'{semana+3}'}, inplace = True)
+    inventarioFaltanteBiologicos = inventarioFaltanteBiologicos.melt(id_vars=['Bodega','SisFinCode'], value_vars=[f'{semana+2}', f'{semana+3}'], var_name='Semana', value_name='Consumo')
+    inventarioFaltanteBiologicos[['Semana']] = inventarioFaltanteBiologicos[["Semana"]].astype(int)
+    archivoPlano = pd.merge(archivoPlano,inventarioFaltanteBiologicos,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
     archivoPlano['Consumo'] = archivoPlano['Consumo'].fillna(0)
     archivoPlano['Unidades de compra'] = np.where(archivoPlano['Consumo'] == 0,archivoPlano['Unidades de compra'],archivoPlano['Consumo'])
 
