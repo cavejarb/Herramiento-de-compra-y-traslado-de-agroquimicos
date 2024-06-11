@@ -29,7 +29,9 @@ site = Site('https://sunshinebouquet1.sharepoint.com/sites/aprovisionamiento',ve
 siteDBLogistics = Site('https://sunshinebouquet1.sharepoint.com/sites/CosteodeTransporte',version=Version.v2019, authcookie=authcookie)
 siteMatEmpaque = Site('https://sunshinebouquet1.sharepoint.com/sites/MatEmpaque',version=Version.v2019, authcookie=authcookie)
 
-print("--------------Bienvenido a la herramienta de compra y traslado de agroquímicos--------------------")
+
+#Esto es un nuevo comentario del código
+print(1)
 
 def readExcel(path,sheet):
     a = pd.read_excel(os.path.dirname(__file__)+f'\\{path}.xlsx',sheet)
@@ -243,6 +245,11 @@ print(end='\n')
 aviso3 = print('2: Si se van a realizar adicionales')      
 adicionales = int(input("Escriba alguna de las 2 opciones anteriores: "))
 
+print("Cambio X")
+print("Sirve perraaaaa")
+print('Cuántos print más')
+print('Cuántos print más2')
+
 #-----------Inventario en almacenes e inventario Siesa-------------------------#
 maestroProductos = get_excel_sh(site,'Agroquímicos','Diccionarios.xlsx','Maestro productos',1,'Parametro') #Diccionario de productos
 maestroProductos = maestroProductos.drop_duplicates(subset=['Item'])
@@ -331,7 +338,6 @@ consumos.rename(columns = {'Cantidad':f'Consumo Semana ({semana})','Inventario':
 consumos['SisFinCode'] = consumos['SisFinCode'].fillna(0)
 consumos['SisFinCode'] = np.where(consumos['SisFinCode'] == 0,consumos['Código'],consumos['SisFinCode'])
 
-create_excel(consumos,"Consumos","Hoja1")
 
 consumosCopiaUM = consumos.copy()
 consumosCopiaUM = consumosCopiaUM.drop_duplicates(subset=['SisFinCode'])
@@ -595,6 +601,7 @@ create_excel(trasladosPunta,"Productos para traslado IN021","Hoja1")
 #    print(f'Hay errores con los archivos de: {excelesConErrores}. Verifique que los códigos de bodega de la carpeta de "Inventario en almacenes" correspondan al nombre del archivo')
 
 # Upload data to sharepoint
+exit()
 if adicionales==1:
     file_upload_to_sharepoint(siteDBLogistics,año,semanaInventario,f"OfertaDemandaSemana{semanaInventario}",2)
     file_upload_to_sharepoint(site,año,semanaInventario,"Inventario disponible-faltante",1)
