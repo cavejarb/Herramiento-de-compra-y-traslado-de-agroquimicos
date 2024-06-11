@@ -246,6 +246,7 @@ aviso3 = print('2: Si se van a realizar adicionales')
 adicionales = int(input("Escriba alguna de las 2 opciones anteriores: "))
 
 print("Cambio X")
+print("Sirve perraaaaa")
 
 #-----------Inventario en almacenes e inventario Siesa-------------------------#
 maestroProductos = get_excel_sh(site,'Agroquímicos','Diccionarios.xlsx','Maestro productos',1,'Parametro') #Diccionario de productos
