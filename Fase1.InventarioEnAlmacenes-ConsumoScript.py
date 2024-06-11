@@ -29,10 +29,6 @@ site = Site('https://sunshinebouquet1.sharepoint.com/sites/aprovisionamiento',ve
 siteDBLogistics = Site('https://sunshinebouquet1.sharepoint.com/sites/CosteodeTransporte',version=Version.v2019, authcookie=authcookie)
 siteMatEmpaque = Site('https://sunshinebouquet1.sharepoint.com/sites/MatEmpaque',version=Version.v2019, authcookie=authcookie)
 
-
-#Esto es un nuevo comentario del código
-print(1)
-
 def readExcel(path,sheet):
     a = pd.read_excel(os.path.dirname(__file__)+f'\\{path}.xlsx',sheet)
     return a
@@ -244,11 +240,6 @@ aviso = print('Ingrese: ',end='\n'
 print(end='\n')
 aviso3 = print('2: Si se van a realizar adicionales')      
 adicionales = int(input("Escriba alguna de las 2 opciones anteriores: "))
-
-print("Cambio X")
-print("Sirve perraaaaa")
-print('Cuántos print más')
-print('Cuántos print más2')
 
 #-----------Inventario en almacenes e inventario Siesa-------------------------#
 maestroProductos = get_excel_sh(site,'Agroquímicos','Diccionarios.xlsx','Maestro productos',1,'Parametro') #Diccionario de productos
