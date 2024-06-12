@@ -205,171 +205,186 @@ demanda = separarProductosNoEncontradosAgotados(demanda,"UM Inv","Productos no e
 demanda['Necesidad de compra (inv) UMCompras'] = np.where(demanda['Uni'] != demanda['UM Inv'], demanda['Necesidad de compra (inv)']*demanda['Dens'] ,demanda['Necesidad de compra (inv)'])
 demanda = demanda.sort_values(by = ['Bodega','SisFinCode'], ascending = [True,True],ignore_index=True )
 
-necesidadCompraFinal = pd.DataFrame()
-indice = 0
-while indice<len(demanda):
-    inventarioTotal = demanda['Necesidad de compra (inv) UMCompras'][indice]
-    inventarioFaltantePorSuplir = inventarioTotal.copy()
-    bodega = demanda['Bodega'][indice]
-    item = demanda['SisFinCode'][indice]
-    baseCotizacionesFiltrado = baseCotizaciones[baseCotizaciones["Item"] == item]
-    baseCotizacionesFiltrado['Bodega'] = bodega
-    baseCotizacionesFiltrado['Unidades de compra'] = 0
-    baseCotizacionesFiltrado['Necesidad inventario'] = inventarioTotal.copy()
-    baseCotizacionesFiltrado['ColumnaOrden'] = baseCotizacionesFiltrado['Precio Actual Compra'] / baseCotizacionesFiltrado['Factor conversión']    
-    #Casos especiales (observaciones)
-    if bodega == "IN080":
-        if item in listProductosExclusivosEsmeralda: baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == bodega]
-    else:
-        if item in listProductosExclusivosDemasFincas: 
-            baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'Demás fincas']
-        elif item in listProductosExclusivosNoEsmeralda:
-            baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado['Observaciones'].isin(valoresAFiltrarNoEsm)]
-            #Agregar casos en el caso que se presenten mayores o menores bultos
-            if item == 995:
-                if inventarioTotal>400000:
-                    baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'Mayor a 10 bultos']
+#Separar productos de compra urgente
+listBichitos = [3868,4709,6602,7484,7485,7731,8056,8057,8653,10941]
+baseAdicionales = demanda[~demanda['SisFinCode'].isin(listBichitos)]
+baseAdicionales['Necesidad de compra (inv)'] = demanda[f'Cierre Semana ({semanaExtraccionArchivos+1})'] + demanda['Inventario de Traslado'].fillna(0) + demanda['Inventario de Traslado IN021'].fillna(0)
+baseAdicionales = baseAdicionales[baseAdicionales["Necesidad de compra (inv)"] < 0]
+baseAdicionales['Necesidad de compra (inv)'] = np.where(baseAdicionales['Necesidad de compra (inv)'] <= 0, baseAdicionales['Necesidad de compra (inv)']*(-1),'Necesidad de compra (inv)') #No sirvió calculando con -1
+baseAdicionales['Necesidad de compra (inv)'] = baseAdicionales['Necesidad de compra (inv)'].astype(float)
+baseAdicionales['Necesidad de compra (inv) UMCompras'] = np.where(baseAdicionales['Uni'] != baseAdicionales['UM Inv'], baseAdicionales['Necesidad de compra (inv)']*baseAdicionales['Dens'],baseAdicionales['Necesidad de compra (inv)'])
+baseAdicionales = baseAdicionales.sort_values(by = ['Bodega','SisFinCode'], ascending = [True,True],ignore_index=True )
+create_excel(baseAdicionales,"Quepaja","Hoja1")
+
+def logicaCompra(dataframe):
+    dataframe = dataframe.reset_index()
+    necesidadCompraFinal = pd.DataFrame()
+    indice = 0
+    while indice<len(dataframe):
+        inventarioTotal = dataframe['Necesidad de compra (inv) UMCompras'][indice]
+        inventarioFaltantePorSuplir = inventarioTotal.copy()
+        bodega = dataframe['Bodega'][indice]
+        item = dataframe['SisFinCode'][indice]
+        baseCotizacionesFiltrado = baseCotizaciones[baseCotizaciones["Item"] == item]
+        baseCotizacionesFiltrado['Bodega'] = bodega
+        baseCotizacionesFiltrado['Unidades de compra'] = 0
+        baseCotizacionesFiltrado['Necesidad inventario'] = inventarioTotal.copy()
+        baseCotizacionesFiltrado['ColumnaOrden'] = baseCotizacionesFiltrado['Precio Actual Compra'] / baseCotizacionesFiltrado['Factor conversión']    
+        #Casos especiales (observaciones)
+        if bodega == "IN080":
+            if item in listProductosExclusivosEsmeralda: baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == bodega]
+        else:
+            if item in listProductosExclusivosDemasFincas: 
+                baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'Demás fincas']
+            elif item in listProductosExclusivosNoEsmeralda:
+                baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado['Observaciones'].isin(valoresAFiltrarNoEsm)]
+                #Agregar casos en el caso que se presenten mayores o menores bultos
+                if item == 995:
+                    if inventarioTotal>400000:
+                        baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'Mayor a 10 bultos']
+                    else:
+                        baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'De 1 a 10 bultos']
                 else:
-                    baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'De 1 a 10 bultos']
-            else:
-                if inventarioTotal>500000:
-                    baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'Mayor a 10 bultos']
-                else:
-                    baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'De 1 a 10 bultos']
-   
-    if item == 7485:
-        baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,spidex[['Bodega', 'Precio']],how='left',left_on= ['Bodega'], right_on= ['Bodega'])
-        baseCotizacionesFiltrado['Precio Actual Compra'] = baseCotizacionesFiltrado['Precio']
-        baseCotizacionesFiltrado.drop(['Precio'], inplace=True, axis=1)
-
-    if item == 980:
-        baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,sueroDeLeche,how='left',left_on= ['Bodega'], right_on= ['Bodega'])
-        baseCotizacionesFiltrado['Observaciones'] = baseCotizacionesFiltrado['Tipo de compra']
-        baseCotizacionesFiltrado.drop(['Tipo de compra'], inplace=True, axis=1)        
-
-    baseCotizacionesFiltrado['Inventario abastecido'] =  baseCotizacionesFiltrado.apply(lambda row: math.ceil(row['Necesidad inventario'] / row['Factor conversión']), axis=1) * baseCotizacionesFiltrado['Factor conversión']
-    #baseProveedoresFiltrado['Inventario abastecido'] =  int(baseProveedoresFiltrado['Necesidad inventario'] / baseProveedoresFiltrado['Factor conversión'])* baseProveedoresFiltrado['Factor conversión']
-
-    baseCotizacionesFiltradoCopia = baseCotizacionesFiltrado.copy()
-    baseCotizacionesFiltradoCopia = baseCotizacionesFiltradoCopia.groupby(['Inventario abastecido'],as_index=False).agg({'ColumnaOrden':'min'})#Si dos unidades suplen lo mismo dejar la de costo más económico
+                    if inventarioTotal>500000:
+                        baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'Mayor a 10 bultos']
+                    else:
+                        baseCotizacionesFiltrado = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Observaciones"] == 'De 1 a 10 bultos']
     
-    if len(baseCotizacionesFiltrado)<=2:
-        baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,baseCotizacionesFiltradoCopia,how='inner',left_on= ['Inventario abastecido','ColumnaOrden'], right_on= ['Inventario abastecido','ColumnaOrden'])
-    baseCotizacionesFiltrado = baseCotizacionesFiltrado.reset_index()
-    observacion = baseCotizacionesFiltrado['Observaciones'][0]
-    indice2 = 0
-    inventarioSuplido = 0
-    baseCotizacionesFiltrado = baseCotizacionesFiltrado.sort_values(by = ['ColumnaOrden'], ascending = [True],ignore_index=True )
+        if item == 7485:
+            baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,spidex[['Bodega', 'Precio']],how='left',left_on= ['Bodega'], right_on= ['Bodega'])
+            baseCotizacionesFiltrado['Precio Actual Compra'] = baseCotizacionesFiltrado['Precio']
+            baseCotizacionesFiltrado.drop(['Precio'], inplace=True, axis=1)
 
-    #if item == 1160:
-    #    create_excel(baseCotizacionesFiltrado,"BaseCotizaciones","Hoja1")
-    #    exit()
+        if item == 980:
+            baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,sueroDeLeche,how='left',left_on= ['Bodega'], right_on= ['Bodega'])
+            baseCotizacionesFiltrado['Observaciones'] = baseCotizacionesFiltrado['Tipo de compra']
+            baseCotizacionesFiltrado.drop(['Tipo de compra'], inplace=True, axis=1)        
 
-    while indice2<len(baseCotizacionesFiltrado): 
-        if inventarioSuplido>=inventarioTotal or inventarioFaltantePorSuplir == 0:
-            break
-        factorConversion = baseCotizacionesFiltrado['Factor conversión'][indice2]
-        unidadesCompra = inventarioFaltantePorSuplir/factorConversion
-        unidadesCompraMin = int(unidadesCompra)
-        unidadesCompraMax = math.ceil(unidadesCompra)
-        if item==980:
-            if observacion == "Mínimo 100 y múltiplos de 20":
-                if inventarioTotal<100000: 
-                    unidadesCompraMin = 100
-                    unidadesCompraMax = 100
+        baseCotizacionesFiltrado['Inventario abastecido'] =  baseCotizacionesFiltrado.apply(lambda row: math.ceil(row['Necesidad inventario'] / row['Factor conversión']), axis=1) * baseCotizacionesFiltrado['Factor conversión']
+        baseCotizacionesFiltradoCopia = baseCotizacionesFiltrado.copy()
+        baseCotizacionesFiltradoCopia = baseCotizacionesFiltradoCopia.groupby(['Inventario abastecido'],as_index=False).agg({'ColumnaOrden':'min'})#Si dos unidades suplen lo mismo dejar la de costo más económico
+        
+        if len(baseCotizacionesFiltrado)<=2:
+            baseCotizacionesFiltrado = pd.merge(baseCotizacionesFiltrado,baseCotizacionesFiltradoCopia,how='inner',left_on= ['Inventario abastecido','ColumnaOrden'], right_on= ['Inventario abastecido','ColumnaOrden'])
+        baseCotizacionesFiltrado = baseCotizacionesFiltrado.reset_index()
+        observacion = baseCotizacionesFiltrado['Observaciones'][0]
+        indice2 = 0
+        inventarioSuplido = 0
+        baseCotizacionesFiltrado = baseCotizacionesFiltrado.sort_values(by = ['ColumnaOrden'], ascending = [True],ignore_index=True )
+
+        while indice2<len(baseCotizacionesFiltrado): 
+            if inventarioSuplido>=inventarioTotal or inventarioFaltantePorSuplir == 0:
+                break
+            factorConversion = baseCotizacionesFiltrado['Factor conversión'][indice2]
+            unidadesCompra = inventarioFaltantePorSuplir/factorConversion
+            unidadesCompraMin = int(unidadesCompra)
+            unidadesCompraMax = math.ceil(unidadesCompra)
+            if item==980:
+                if observacion == "Mínimo 100 y múltiplos de 20":
+                    if inventarioTotal<100000: 
+                        unidadesCompraMin = 100
+                        unidadesCompraMax = 100
+                    else:
+                        unidadesCompraMin = math.ceil(inventarioTotal/20000)*20
+                        unidadesCompraMax = math.ceil(inventarioTotal/20000)*20
                 else:
-                    unidadesCompraMin = math.ceil(inventarioTotal/20000)*20
-                    unidadesCompraMax = math.ceil(inventarioTotal/20000)*20
-            else:
-                if inventarioTotal<200000: 
-                    unidadesCompraMin = 200
-                    unidadesCompraMax = 200
+                    if inventarioTotal<200000: 
+                        unidadesCompraMin = 200
+                        unidadesCompraMax = 200
+                    else:
+                        unidadesCompraMin = math.ceil(inventarioTotal/20000)*20
+                        unidadesCompraMax = math.ceil(inventarioTotal/20000)*20
+            if observacion == "Múltiplos de 500":
+                if inventarioTotal < 1000000: 
+                    unidadesCompraMin = 1000
+                    unidadesCompraMax = 1000
                 else:
-                    unidadesCompraMin = math.ceil(inventarioTotal/20000)*20
-                    unidadesCompraMax = math.ceil(inventarioTotal/20000)*20
-        if observacion == "Múltiplos de 500":
-            if inventarioTotal < 1000000: 
-                unidadesCompraMin = 1000
-                unidadesCompraMax = 1000
-            else:
-                unidadesCompraMin = math.ceil(inventarioTotal/500000)*500
-                unidadesCompraMax = math.ceil(inventarioTotal/500000)*500
-        if observacion == "Múltiplos de 25":
-            unidadesCompraMin = math.ceil(inventarioTotal/25000)*25
-            unidadesCompraMax = math.ceil(inventarioTotal/25000)*25
-        if observacion == "Múltiplos de 10":
-            unidadesCompraMin = math.ceil(inventarioTotal/10000)*10
-            unidadesCompraMax = math.ceil(inventarioTotal/10000)*10
+                    unidadesCompraMin = math.ceil(inventarioTotal/500000)*500
+                    unidadesCompraMax = math.ceil(inventarioTotal/500000)*500
+            if observacion == "Múltiplos de 25":
+                unidadesCompraMin = math.ceil(inventarioTotal/25000)*25
+                unidadesCompraMax = math.ceil(inventarioTotal/25000)*25
+            if observacion == "Múltiplos de 10":
+                unidadesCompraMin = math.ceil(inventarioTotal/10000)*10
+                unidadesCompraMax = math.ceil(inventarioTotal/10000)*10
 
-        if observacion == "Múltiplos de 20":
-            unidadesCompraMin = math.ceil(inventarioTotal/20000)*20
-            unidadesCompraMax = math.ceil(inventarioTotal/20000)*20      
+            if observacion == "Múltiplos de 20":
+                unidadesCompraMin = math.ceil(inventarioTotal/20000)*20
+                unidadesCompraMax = math.ceil(inventarioTotal/20000)*20      
 
-        inventarioCompraMax = unidadesCompraMax * factorConversion
-        inventarioCompraMin = unidadesCompraMin * factorConversion
-        inventarioASuplir = inventarioSuplido + inventarioCompraMax
-        sobreAbastecimiento = inventarioASuplir/inventarioTotal
+            inventarioCompraMax = unidadesCompraMax * factorConversion
+            inventarioCompraMin = unidadesCompraMin * factorConversion
+            inventarioASuplir = inventarioSuplido + inventarioCompraMax
+            sobreAbastecimiento = inventarioASuplir/inventarioTotal
 
-        if len(baseCotizacionesFiltrado)==1:
-            necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltrado,necesidadCompraFinal,'Unidades de compra',
-            0,unidadesCompraMax,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
-            break
-        if sobreAbastecimiento <= inventarioExtraMax:
-            necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltrado,necesidadCompraFinal,'Unidades de compra',
-            indice2,unidadesCompraMax,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
-            break
-        if indice2 == (len(baseCotizacionesFiltrado)-1):
-            baseCotizacionesFiltradoCopia = baseCotizacionesFiltrado.copy()
-            #/////////////////// Agregar agrupacion por minimo unidades que suplen lo mismo /////////////////////////
-            agrupoporminimos = baseCotizacionesFiltradoCopia.groupby(['Item','Bodega', 'Inventario abastecido'])['ColumnaOrden'].min().reset_index()
-            baseCotizacionesFiltradoCopia2 = pd.merge(baseCotizacionesFiltradoCopia,agrupoporminimos[['Item', 'Bodega', 'ColumnaOrden','Inventario abastecido']], how='inner', left_on=['Item', 'Bodega', 'ColumnaOrden'], right_on=['Item', 'Bodega', 'ColumnaOrden'])
-            factorConversion = baseCotizacionesFiltradoCopia2['Factor conversión'].min()
-            baseCotizacionesFiltradoMin = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Factor conversión"] == factorConversion]
-            factorConversion = baseCotizacionesFiltradoCopia['Factor conversión'].min()
-            baseCotizacionesFiltradoMin = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Factor conversión"] == factorConversion]
-            baseCotizacionesFiltradoMin = baseCotizacionesFiltradoMin.reset_index()
-            unidadesCompraMax = math.ceil(inventarioFaltantePorSuplir/factorConversion)
-            necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltradoMin,necesidadCompraFinal,'Unidades de compra',
-            0,unidadesCompraMax,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
-            break
-        if unidadesCompraMin>0:
-            necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltrado,necesidadCompraFinal,'Unidades de compra',
-            indice2,unidadesCompraMin,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
-        indice2+=1
-    indice+=1
-    
-demanda = pd.merge(demanda,necesidadCompraFinal,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','Item'])
-demanda['Costo compra total'] = demanda['Precio Actual Compra'] * demanda['Unidades de compra']
-demanda['Inventario suplido'] = demanda['Factor conversión'] * demanda['Unidades de compra']
-demanda['ConcatenadoBodegaProducto'] = demanda['Bodega'] + demanda['Quimico']
+            if len(baseCotizacionesFiltrado)==1:
+                necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltrado,necesidadCompraFinal,'Unidades de compra',
+                0,unidadesCompraMax,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
+                break
+            if sobreAbastecimiento <= inventarioExtraMax:
+                necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltrado,necesidadCompraFinal,'Unidades de compra',
+                indice2,unidadesCompraMax,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
+                break
+            if indice2 == (len(baseCotizacionesFiltrado)-1):
+                baseCotizacionesFiltradoCopia = baseCotizacionesFiltrado.copy()
+                #/////////////////// Agregar agrupacion por minimo unidades que suplen lo mismo /////////////////////////
+                agrupoporminimos = baseCotizacionesFiltradoCopia.groupby(['Item','Bodega', 'Inventario abastecido'])['ColumnaOrden'].min().reset_index()
+                baseCotizacionesFiltradoCopia2 = pd.merge(baseCotizacionesFiltradoCopia,agrupoporminimos[['Item', 'Bodega', 'ColumnaOrden','Inventario abastecido']], how='inner', left_on=['Item', 'Bodega', 'ColumnaOrden'], right_on=['Item', 'Bodega', 'ColumnaOrden'])
+                factorConversion = baseCotizacionesFiltradoCopia2['Factor conversión'].min()
+                baseCotizacionesFiltradoMin = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Factor conversión"] == factorConversion]
+                factorConversion = baseCotizacionesFiltradoCopia['Factor conversión'].min()
+                baseCotizacionesFiltradoMin = baseCotizacionesFiltrado[baseCotizacionesFiltrado["Factor conversión"] == factorConversion]
+                baseCotizacionesFiltradoMin = baseCotizacionesFiltradoMin.reset_index()
+                unidadesCompraMax = math.ceil(inventarioFaltantePorSuplir/factorConversion)
+                necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltradoMin,necesidadCompraFinal,'Unidades de compra',
+                0,unidadesCompraMax,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
+                break
+            if unidadesCompraMin>0:
+                necesidadCompraFinal,inventarioFaltantePorSuplir,inventarioSuplido = appendRowFromDfToAnother(baseCotizacionesFiltrado,necesidadCompraFinal,'Unidades de compra',
+                indice2,unidadesCompraMin,factorConversion,inventarioFaltantePorSuplir,inventarioSuplido)
+            indice2+=1
+        indice+=1
+        
+    dataframe = pd.merge(dataframe,necesidadCompraFinal,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','Item'])
+    dataframe['Costo compra total'] = dataframe['Precio Actual Compra'] * dataframe['Unidades de compra']
+    dataframe['Inventario suplido'] = dataframe['Factor conversión'] * dataframe['Unidades de compra']
+    dataframe['ConcatenadoBodegaProducto'] = dataframe['Bodega'] + dataframe['Quimico']
 
-#Dejar solo una UM cuando dos unidades suplen el mismo inventario
-indice = 1
-concatenadoBodegaProductoAnterior = demanda['ConcatenadoBodegaProducto'][0]
-factorConversionAnterior = demanda['Factor conversión'][0]
-unidadesCompraAnterior = demanda['Unidades de compra'][0]
-while indice<len(demanda):
-    concatenadoBodegaProducto = demanda['ConcatenadoBodegaProducto'][indice]
-    inventarioSuplido = demanda['Inventario suplido'][indice]
-    if concatenadoBodegaProducto == concatenadoBodegaProductoAnterior:
-        if factorConversionAnterior == inventarioSuplido:
-            demanda['Unidades de compra'][indice-1] = unidadesCompraAnterior + 1
-            demanda['Unidades de compra'][indice] = 0
-    factorConversionAnterior = demanda['Factor conversión'][indice]
-    unidadesCompraAnterior = demanda['Unidades de compra'][indice]
-    concatenadoBodegaProductoAnterior = concatenadoBodegaProducto
-    indice+=1
+    #Dejar solo una UM cuando dos unidades suplen el mismo inventario
+    indice = 1
+    concatenadoBodegaProductoAnterior = dataframe['ConcatenadoBodegaProducto'][0]
+    factorConversionAnterior = dataframe['Factor conversión'][0]
+    unidadesCompraAnterior = dataframe['Unidades de compra'][0]
+    while indice<len(dataframe):
+        concatenadoBodegaProducto = dataframe['ConcatenadoBodegaProducto'][indice]
+        inventarioSuplido = dataframe['Inventario suplido'][indice]
+        if concatenadoBodegaProducto == concatenadoBodegaProductoAnterior:
+            if factorConversionAnterior == inventarioSuplido:
+                dataframe['Unidades de compra'][indice-1] = unidadesCompraAnterior + 1
+                dataframe['Unidades de compra'][indice] = 0
+        factorConversionAnterior = dataframe['Factor conversión'][indice]
+        unidadesCompraAnterior = dataframe['Unidades de compra'][indice]
+        concatenadoBodegaProductoAnterior = concatenadoBodegaProducto
+        indice+=1
 
-demanda = demanda[demanda["Unidades de compra"] != 0]
-demanda['Inventario suplido'] = demanda['Factor conversión'] * demanda['Unidades de compra']
-demanda['Inventario sobrante'] = demanda['Unidades de compra'] * demanda['Factor conversión'] - demanda['Necesidad de compra (inv)'] #Calcularlas mejor
-demanda['% Inventario sobrante'] = demanda['Inventario sobrante'] / demanda['Necesidad de compra (inv)'] #Calcularlas mejor
+    dataframe = dataframe[dataframe["Unidades de compra"] != 0]
+    dataframe['Inventario suplido'] = dataframe['Factor conversión'] * dataframe['Unidades de compra']
+    dataframe['Inventario sobrante'] = dataframe['Unidades de compra'] * dataframe['Factor conversión'] - dataframe['Necesidad de compra (inv)'] #Calcularlas mejor
+    dataframe['% Inventario sobrante'] = dataframe['Inventario sobrante'] / dataframe['Necesidad de compra (inv)'] #Calcularlas mejor
+    return dataframe
+
+baseAdicionales = logicaCompra(baseAdicionales)
+baseAdicionales['Inventario suplido real adicionales'] = np.where(baseAdicionales['Uni'] != baseAdicionales['UM Inv_x'], baseAdicionales['Inventario suplido']/baseAdicionales['Dens'],baseAdicionales['Inventario suplido'])
+baseAdicionalesAgrupada =  baseAdicionales.groupby(['Bodega','SisFinCode'],as_index=False).agg({'Inventario suplido real adicionales':'sum'})
+demanda = pd.merge(demanda,baseAdicionalesAgrupada[['Bodega','SisFinCode','Inventario suplido real adicionales']],how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
+demanda['Necesidad de compra (inv)'] = demanda['Necesidad de compra (inv)'].fillna(0) - demanda['Inventario suplido real adicionales'].fillna(0)
+demanda['Necesidad de compra (inv) UMCompras'] = np.where(demanda['Uni'] != demanda['UM Inv'], demanda['Necesidad de compra (inv)']*demanda['Dens'],demanda['Necesidad de compra (inv)'])
+demanda = logicaCompra(demanda)
 
 #------------Productos con observaciones
 demandaProductosConObservaciones = demanda.copy()
 demandaProductosConObservaciones['Observaciones'] = demandaProductosConObservaciones['Observaciones'].astype(str)
 demandaProductosConObservaciones = demandaProductosConObservaciones[demandaProductosConObservaciones["Observaciones"] != "0"]
-#demandaProductosConObservaciones = demanda.dropna(subset=['Observaciones']) #Eliminar cuando se agreguen las observaciones en código
 demandaProductosConObservaciones = demandaProductosConObservaciones.groupby(['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Observaciones'],as_index=False).agg({'Unidades de compra':'sum','Costo compra total':'sum','Inventario suplido':'sum'})
 demandaProductosConObservaciones = demandaProductosConObservaciones[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido','Observaciones']]
 create_excel(demandaProductosConObservaciones,"Productos con observaciones","Hoja1")
@@ -413,11 +428,23 @@ demanda['Precio Actual Compra 3'] = demanda['Precio Actual Compra 3'].fillna(0)
 demanda['Razón social proveedor'] = np.where(demanda['Razón social proveedor 2'] != 0,demanda['Razón social proveedor 2'],demanda['Razón social proveedor'])
 demanda['Precio Actual Compra'] = np.where(demanda['Precio Actual Compra 3'] != 0,demanda['Precio Actual Compra 3'],demanda['Precio Actual Compra'])
 
-demanda = demanda.groupby(['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Concatenado'],as_index=False).agg({'Unidades de compra':'sum','Costo compra total':'sum','Inventario suplido':'sum'})
-demanda = demanda[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
-demanda = demanda.sort_values(by = ['Bodega','SisFinCode','Factor conversión'], ascending = [True,True,False],ignore_index=True )
-demanda = pd.merge(demanda,diccionarioFincas[['Bodega','Asignación','Bodega - Descripción']],how='left',left_on= ['Bodega'], right_on= ['Bodega'])
+#Dejar columnas de dataframes finales a exportar
+def definirColumnasDataframeOrdenes(dataframe):
+    dataframe = dataframe.groupby(['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Concatenado'],as_index=False).agg({'Unidades de compra':'sum','Costo compra total':'sum','Inventario suplido':'sum'})
+    dataframe = dataframe[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
+    dataframe = dataframe.sort_values(by = ['Bodega','SisFinCode','Factor conversión'], ascending = [True,True,False],ignore_index=True )
+    dataframe = pd.merge(dataframe,diccionarioFincas[['Bodega','Asignación','Bodega - Descripción']],how='left',left_on= ['Bodega'], right_on= ['Bodega'])
+    return dataframe
 
+demanda = definirColumnasDataframeOrdenes(demanda)
+baseAdicionales = definirColumnasDataframeOrdenes(baseAdicionales)
+create_excel(baseAdicionales,"Adicionales","Hoja1")
+if adicionales==1:
+    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Productos adicionales semana {semanaExtraccionArchivos+1}','Adicionales')
+else:
+    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales/Productos adicionales semana {semanaExtraccionArchivos+1}','Adicionales')
+
+#Separar dataframe según comprador
 demandaAndrea = demanda[demanda["Asignación"] == "Andrea Navarrete"]
 demandaClaudia = demanda[demanda["Asignación"] == "Claudia Quiroga"]
 demandaSandro = demanda[demanda["Asignación"] == "Sandro Murillo"]

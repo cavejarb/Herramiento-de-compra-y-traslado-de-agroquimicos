@@ -154,7 +154,6 @@ def eliminarPrimeraFila(df,type):
     df.columns = df.iloc[0]
     dfFinal = df.drop([df.index[0]])
     dfFinal = dfFinal.reset_index()
-    #create_excel(dfFinal,"DfPrueba","Hoja1")
     if type==1:
         dfFinal.drop(['index','Disponible','Consumo a 2 Semanas','Consumo a 3 Semanas','Cierre a 2 Semanas'], inplace=True, axis=1)
     elif type==2:
@@ -251,7 +250,6 @@ if semanaInventario % 2== 0:
     fincasCerradas = fincasCerradas[fincasCerradas["Semanas"] == 1]
 fincasCerradas["Estado ('OK' o vacío)"] = fincasCerradas["Estado ('OK' o vacío)"].str.upper()
 fincasCerradas = fincasCerradas[fincasCerradas["Estado ('OK' o vacío)"] == "OK"]
-create_excel(fincasCerradas,"FincasCerradas","Hoja1")
 
 if adicionales==1:
     inventarioSiesa = get_excel_sh(site,año,f'Semana{semanaInventario}.xlsx','Sheet1',5,f'Semana{semanaInventario}')
@@ -379,7 +377,6 @@ ordenesDeCompras = ordenesDeCompras.dropna(subset=['Nombre archivo'])
 calendario = get_excel_sh(siteDBLogistics,'Calendarios','calendarioSunshine.xlsx','Hoja1',3,'Parametro')#Calendario DBLogistics
 ordenesDeCompras['Fecha entrega'] = pd.to_datetime(ordenesDeCompras['Fecha entrega'])
 ordenesDeCompras = pd.merge(ordenesDeCompras,calendario, how='left' ,left_on= ['Fecha entrega'], right_on= ['Fecha'])
-create_excel(ordenesDeCompras,"Ordenes","Hoja1")
 ordenesDeCompras = ordenesDeCompras.groupby(['Nombre archivo','Bodega','Item','Desc. item','U.M. inv.','U.M.','semana'],as_index=False)[['Cant. pendiente']].sum()
 ordenesDeCompras = pd.pivot_table(ordenesDeCompras,values='Cant. pendiente',columns=['semana'],index=['Nombre archivo','Item','Desc. item','U.M. inv.','U.M.','Bodega'], aggfunc=np.sum)
 
@@ -528,7 +525,6 @@ demandaOferta = pd.merge(demandaOferta,productosVencidos[['Bodega','Item','Canti
 demandaOferta['Inventario Disponible 2'] = demandaOferta['Inventario Disponible'].fillna(0)-demandaOferta['Cantidad vencida'].fillna(0)
 demandaOferta = demandaOferta[demandaOferta['Inventario Disponible 2'] > 0 ]
 demandaOferta = demandaOferta[['Bodega Necesidad','Finca Necesidad','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Inventario Faltante','Bodega Disponible','Finca Disponible','Inventario Disponible','Fecha último movimiento','Costo promedio unitario']]
-
 create_excel(demandaOferta,f'OfertaDemandaSemana{semanaInventario}',"Hoja1")
 
 #-----Producto traslado bodega IN021
@@ -588,11 +584,6 @@ while i==0:
 
 create_excel(trasladosPunta,"Productos para traslado IN021","Hoja1")
 
-#if len(excelesConErrores)>0:
-#    print(f'Hay errores con los archivos de: {excelesConErrores}. Verifique que los códigos de bodega de la carpeta de "Inventario en almacenes" correspondan al nombre del archivo')
-
-# Upload data to sharepoint
-exit()
 if adicionales==1:
     file_upload_to_sharepoint(siteDBLogistics,año,semanaInventario,f"OfertaDemandaSemana{semanaInventario}",2)
     file_upload_to_sharepoint(site,año,semanaInventario,"Inventario disponible-faltante",1)

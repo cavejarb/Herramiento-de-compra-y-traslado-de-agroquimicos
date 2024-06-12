@@ -18,6 +18,7 @@ from datetime import date
 import math
 import tkinter as tk
 from tkcalendar import Calendar
+import datetime as dt
 
 today = date.today()
 start_time = time()
@@ -137,6 +138,7 @@ solicitante = parametros['Valor'][26]
 consecutivoDocumentoReferencia = int(parametros['Valor'][27])+1
 fechaEntregaLejanias = parametros['Valor'][28]
 fechaEntrega = parametros['Valor'][29]
+fechaEntregaAdicionales = parametros['Valor'][30]
 
 
 #----------Archivo plano (cambiar por leer cada archivo del SP y concatenar dataframes)
@@ -162,12 +164,18 @@ for folderI in foldersComprador:
                 df = pd.read_excel(file_path, sheet_name='Hoja1')
                 dataframes.append(df)
                 archivoPlano = pd.concat(dataframes)
-            
+
+#Incluir productos adicionales de semana + 1
+productosAdicionales = get_excel_sh(siteAprovisionamiento,año,f'Semana{semana}',f'Productos adicionales semana {semana+1}','Adicionales.xlsx','Hoja1',3)
+productosAdicionales = productosAdicionales[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
+productosAdicionales['Adicional'] = 'Si'
+archivoPlano['Adicional'] = 'No'
+archivoPlano = pd.concat([archivoPlano, productosAdicionales], axis=0)
+
 archivoPlano = archivoPlano.reset_index()
 archivoPlano['Concatenado'] = archivoPlano["Bodega"] + archivoPlano['Razón social proveedor']
 archivoPlano = archivoPlano.sort_values(by = ['Bodega','Razón social proveedor','SisFinCode'], ascending = [True,True,True],ignore_index=True )
 archivoPlanoCopia = archivoPlano.copy()
-
 
 #------Ajustar los biológicos (los odio fucking bichos)
 listBichitos = [3868,4709,6602,7484,7485,7731,8056,8057,8653,10941]
@@ -215,7 +223,7 @@ while indice<len(archivoPlano):
     consecutivo1Anterior = consecutivo1Actual
     indice+=1
 
-archivoPlano = archivoPlano[['consecutivoOC','documentoReferencia','consecutivoItem','Bodega','SisFinCode','Uni','Razón social proveedor','Precio Actual Compra','UM Compras','Unidades de compra','Semana']]
+archivoPlano = archivoPlano[['consecutivoOC','documentoReferencia','consecutivoItem','Bodega','SisFinCode','Uni','Razón social proveedor','Precio Actual Compra','UM Compras','Unidades de compra','Semana','Adicional']]
 archivoPlano['tipoDocumento'] = tipoDeDocumento
 archivoPlano['Concepto'] = concepto
 archivoPlano['Grupo de clase de documento'] = grupoDeClaseDeDocumento
@@ -247,7 +255,6 @@ archivoPlano['fechaEntregaLejanias'] = fechaEntregaLejanias
 archivoPlano['Descuento global 1'] = descuentoGlobal1
 archivoPlano['Descuento global 2'] = descuentoGlobal2
 
-
 proveedores = get_excel_sh(siteAprovisionamiento,'Indicadores','Agroquímicos',"Parámetro",'Diccionarios.xlsx','Proveedores',1)
 proveedores = proveedores[proveedores["Habilitado"] == "Si"]
 proveedores = proveedores.sort_values(by = ['Razón social'], ascending = [True],ignore_index=True )
@@ -260,7 +267,6 @@ bodegas = pd.read_excel(folder.get_file('Diccionarios.xlsx'), sheet_name='Bodega
 archivoPlano = pd.merge(archivoPlano,bodegas[['centroOperacion','Bodega']],how='left',left_on= ['Bodega'], right_on= ['Bodega'])
 archivoPlano.rename(columns = {'Código':'proveedor','Sucursal':'sucursal','Condicion de pago':'condicionPago','Bodega':'bodega','UM Compras':'unidadMedida','Unidades de compra':'cantidadPedida','Precio Actual Compra':'precioUnitario','SisFinCode':'item'}, inplace = True)
 
-
 listbodegas = ['IN001', 'IN008', 'IN013', 'IN052', 'IN054', 'IN055', 'IN062', 'IN063', 'IN071', 'IN078', 'IN083', 'IN155']
 archivoPlano.loc[archivoPlano['bodega'].isin(listbodegas), 'fechaEntrega'] = fechaEntregaLejanias
 archivoPlano['centroOperacion'] = archivoPlano['centroOperacion'].astype(str).str.zfill(3) #Verificar después con esas sucursales raras o con más de dos dígitos
@@ -270,6 +276,7 @@ documentos = documentos[['centroOperacion','tipoDocumento','consecutivoOC','fech
 archivoPlano['centroOperacionM'] = archivoPlano['centroOperacion']
 
 #------Ajustar fecha de los bichos
+calendario = get_excel_sh(siteDBLogistics,"Calendarios",'','','calendarioSunshine.xlsx','Hoja1',4)
 semanasDeAbastecimiento = get_excel_sh(siteAprovisionamiento,'Indicadores','Agroquímicos',"Parámetro",'Diccionarios.xlsx','Fincas',1)
 archivoPlano = pd.merge(archivoPlano,semanasDeAbastecimiento[['Bodega','Semanas de abastecimiento']],how='left',left_on= ['bodega'], right_on= ['Bodega'])
 
@@ -283,22 +290,23 @@ while indice<len(archivoPlano):
             archivoPlano['Semana'][indice] = semana+2
     indice+=1
 
-calendario = get_excel_sh(siteDBLogistics,"Calendarios",'','','calendarioSunshine.xlsx','Hoja1',4)
-calendario = calendario[calendario["año"] == año]
-calendario = calendario[calendario['Dia semana'].isin(['Friday', 'viernes'])]
+calendarioBichos = calendario[calendario["año"] == año]
+calendarioBichos = calendarioBichos[calendarioBichos['Dia semana'].isin(['Friday', 'viernes'])]
 palabraSemana = 'Semana'
-calendario['SemanaTexto'] = palabraSemana + calendario['semana'].astype(str)
+calendarioBichos['SemanaTexto'] = palabraSemana + calendarioBichos['semana'].astype(str)
 
-archivoPlano = pd.merge(archivoPlano,calendario[['Fecha','semana','año','SemanaTexto']],how='left',left_on= ['Semana'], right_on= ['semana'])
+archivoPlano = pd.merge(archivoPlano,calendarioBichos[['Fecha','semana','año','SemanaTexto']],how='left',left_on= ['Semana'], right_on= ['semana'])
 archivoPlano['Fecha'] = archivoPlano['Fecha'].fillna(today)
 archivoPlano[['Fecha']] = archivoPlano[["Fecha"]].astype(str)
 archivoPlano['Fecha'] = archivoPlano['Fecha'].apply(lambda x:dateToString(str(x)))
 
 for i in listBichitos:
     archivoPlano['fechaEntrega'] = np.where(archivoPlano['item'] == i,archivoPlano['Fecha'],archivoPlano['fechaEntrega'])
-    #archivoPlano['fechaEntrega'] = np.where(archivoPlano['item'] == i,archivoPlano['Fecha'],archivoPlano['fechaEntregaLejanias'])
     archivoPlano['notas'] = np.where(archivoPlano['item'] == i,archivoPlano['SemanaTexto'],archivoPlano['notas'])
-    
+
+#---Ajustar fecha de adicionales
+archivoPlano['fechaEntrega'] = np.where(archivoPlano['Adicional'] == 'Si',fechaEntregaAdicionales,archivoPlano['fechaEntrega'])
+
 #Columnas finales
 movimientos = archivoPlano[['centroOperacion','tipoDocumento','consecutivoOC','consecutivoItem','bodega','motivo','centroOperacionM','unidadMedida','cantidadPedida','fechaEntrega','precioUnitario','notas','item','unidadNegocio']]
 
@@ -328,7 +336,6 @@ else:
     create_excel(archivoPlanoExcelDoc,f"OrdenCompraSemana{semana}Adicionales","Documentos")
     create_sheet(archivoPlanoExcelMov,f"OrdenCompraSemana{semana}Adicionales",'Movimientos')    
 
-exit()
 if adicionales==1:
     file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semana}',f"ArchivoPlanoSemana{semana}")
     file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semana}',f"OrdenCompraSemana{semana}")
