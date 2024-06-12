@@ -67,10 +67,10 @@ def separarProductosNoEncontradosAgotados(df,columnaFiltro,nombreExportableExcel
     listProductosNoEncontradosAgotados =  list(pd.unique(dfFiltrado["Producto"]))
     dfFiltrado.drop(['Producto'], inplace=True, axis=1)
     create_excel(dfFiltrado,nombreExportableExcel,"Hoja1")
-    #if adicionales==1:
-    #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}',nombreExportableExcel)
-    #else:
-    #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales',nombreExportableExcel)
+    if adicionales==1:
+        file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}',nombreExportableExcel)
+    else:
+        file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales',nombreExportableExcel)
     print(f'Productos no encontrados o agotados : {listProductosNoEncontradosAgotados}. Revisar la base de cotizaciones "Base Agroquímicos" o en la hoja "Unidades compra" del excel "Diccionario"')
     if tipo == 1: df = df[df[columnaFiltro].isnull()]
     else: df = df.dropna(subset=[columnaFiltro])
@@ -214,7 +214,6 @@ baseAdicionales['Necesidad de compra (inv)'] = np.where(baseAdicionales['Necesid
 baseAdicionales['Necesidad de compra (inv)'] = baseAdicionales['Necesidad de compra (inv)'].astype(float)
 baseAdicionales['Necesidad de compra (inv) UMCompras'] = np.where(baseAdicionales['Uni'] != baseAdicionales['UM Inv'], baseAdicionales['Necesidad de compra (inv)']*baseAdicionales['Dens'],baseAdicionales['Necesidad de compra (inv)'])
 baseAdicionales = baseAdicionales.sort_values(by = ['Bodega','SisFinCode'], ascending = [True,True],ignore_index=True )
-create_excel(baseAdicionales,"Quepaja","Hoja1")
 
 def logicaCompra(dataframe):
     dataframe = dataframe.reset_index()
@@ -438,7 +437,6 @@ def definirColumnasDataframeOrdenes(dataframe):
 
 demanda = definirColumnasDataframeOrdenes(demanda)
 baseAdicionales = definirColumnasDataframeOrdenes(baseAdicionales)
-create_excel(baseAdicionales,"Adicionales","Hoja1")
 if adicionales==1:
     file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Productos adicionales semana {semanaExtraccionArchivos+1}','Adicionales')
 else:
@@ -464,10 +462,10 @@ for i in listBodegas:
         asignacion = demandaFiltradaPorBodega["Asignación"][0]
         demandaFiltradaPorBodega = demandaFiltradaPorBodega[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
         create_excel(demandaFiltradaPorBodega,j,"Hoja1")
-        #if adicionales==1:
-        #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/{asignacion}',j)
-        #else:
-        #    file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales/{asignacion}',j)
+        if adicionales==1:
+            file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/{asignacion}',j)
+        else:
+            file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Adicionales/{asignacion}',j)
 #Time
 producto = f'Fase 3: Generación de ordenes de compras'
 elapsed_time = time() - start_time
