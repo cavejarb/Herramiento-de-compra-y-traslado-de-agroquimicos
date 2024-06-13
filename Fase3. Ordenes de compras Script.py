@@ -157,11 +157,11 @@ else:
 productosHomologos = get_excel_sh(siteAprovisionamiento,'Agroquímicos','','Diccionarios.xlsx','Productos homólogos',2)
 demandaCopia = pd.merge(demanda,productosHomologos[['Item descontinuado','Item homólogo']],how='left',left_on= ['SisFinCode'], right_on= ['Item descontinuado'])
 demandaCopia['SisFinCode'] = demandaCopia.apply(lambda row: row['Item homólogo'] if pd.notnull(row['Item homólogo']) else row['SisFinCode'], axis=1)
+demandaCopia = demandaCopia.dropna(subset=['Item homólogo'])
 demandaCopia =  demandaCopia.groupby(['Bodega','SisFinCode'],as_index=False).agg({'Inventario Necesidad':'sum'})
 demandaCopia.rename(columns = {'Inventario Necesidad':'Inventario Necesidad Final'}, inplace = True)
-demanda = pd.merge(demanda,demandaCopia,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
-listHomologos =  list(pd.unique(productosHomologos["Item homólogo"]))
-for i in listHomologos: demanda['Inventario Necesidad'] = np.where(demanda['SisFinCode'] == i,demanda['Inventario Necesidad Final'],demanda['Inventario Necesidad'])
+demanda = pd.merge(demanda,demandaCopia,how='outer',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
+demanda['Inventario Necesidad'] = demanda['Inventario Necesidad'].fillna(0)+demanda['Inventario Necesidad Final'].fillna(0)
 
 demanda['Necesidad de compra (inv)'] = demanda[f"Inventario Necesidad"] + demanda['Inventario de Traslado'].fillna(0) + demanda['Inventario de Traslado IN021'].fillna(0)
 demanda = demanda[demanda[f"Necesidad de compra (inv)"] < 0]
@@ -347,7 +347,8 @@ def logicaCompra(dataframe):
     dataframe = pd.merge(dataframe,necesidadCompraFinal,how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','Item'])
     dataframe['Costo compra total'] = dataframe['Precio Actual Compra'] * dataframe['Unidades de compra']
     dataframe['Inventario suplido'] = dataframe['Factor conversión'] * dataframe['Unidades de compra']
-    dataframe['ConcatenadoBodegaProducto'] = dataframe['Bodega'] + dataframe['Quimico']
+    dataframe['SisFinCodeText'] = dataframe['SisFinCode'].astype(str)
+    dataframe['ConcatenadoBodegaProducto'] = dataframe['Bodega'] + dataframe['SisFinCodeText']
 
     #Dejar solo una UM cuando dos unidades suplen el mismo inventario
     indice = 1
@@ -377,6 +378,8 @@ baseAdicionales['Inventario suplido real adicionales'] = np.where(baseAdicionale
 baseAdicionalesAgrupada =  baseAdicionales.groupby(['Bodega','SisFinCode'],as_index=False).agg({'Inventario suplido real adicionales':'sum'})
 demanda = pd.merge(demanda,baseAdicionalesAgrupada[['Bodega','SisFinCode','Inventario suplido real adicionales']],how='left',left_on= ['Bodega','SisFinCode'], right_on= ['Bodega','SisFinCode'])
 demanda['Necesidad de compra (inv)'] = demanda['Necesidad de compra (inv)'].fillna(0) - demanda['Inventario suplido real adicionales'].fillna(0)
+demanda = demanda[demanda["Necesidad de compra (inv)"] > 0]
+demanda['Uni'] = demanda['Uni'].fillna(demanda['UM Inv'])
 demanda['Necesidad de compra (inv) UMCompras'] = np.where(demanda['Uni'] != demanda['UM Inv'], demanda['Necesidad de compra (inv)']*demanda['Dens'],demanda['Necesidad de compra (inv)'])
 demanda = logicaCompra(demanda)
 
@@ -429,6 +432,9 @@ demanda['Precio Actual Compra'] = np.where(demanda['Precio Actual Compra 3'] != 
 
 #Dejar columnas de dataframes finales a exportar
 def definirColumnasDataframeOrdenes(dataframe):
+    columnasAgrupar = ['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Concatenado']
+    for i in columnasAgrupar:
+        dataframe[i] = dataframe[i].fillna(0)
     dataframe = dataframe.groupby(['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Concatenado'],as_index=False).agg({'Unidades de compra':'sum','Costo compra total':'sum','Inventario suplido':'sum'})
     dataframe = dataframe[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
     dataframe = dataframe.sort_values(by = ['Bodega','SisFinCode','Factor conversión'], ascending = [True,True,False],ignore_index=True )
@@ -437,6 +443,7 @@ def definirColumnasDataframeOrdenes(dataframe):
 
 demanda = definirColumnasDataframeOrdenes(demanda)
 baseAdicionales = definirColumnasDataframeOrdenes(baseAdicionales)
+create_excel(baseAdicionales,"Adicionales","Hoja1")
 if adicionales==1:
     file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semanaExtraccionArchivos}/Productos adicionales semana {semanaExtraccionArchivos+1}','Adicionales')
 else:

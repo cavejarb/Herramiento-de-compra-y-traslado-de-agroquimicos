@@ -110,6 +110,7 @@ adicionales = int(input("Escriba alguna de las 2 opciones anteriores: "))
 parametros = get_excel_sh(siteAprovisionamiento,'Indicadores','Agroquímicos',"Parámetro",'Diccionarios.xlsx','Parámetros archivo plano',1)
 año = parametros['Valor'][0]
 semana = parametros['Valor'][1]
+print(semana)
 tipoDeDocumento = parametros['Valor'][2]
 concepto = parametros['Valor'][3]
 grupoDeClaseDeDocumento = parametros['Valor'][4]
@@ -173,6 +174,7 @@ archivoPlano['Adicional'] = 'No'
 archivoPlano = pd.concat([archivoPlano, productosAdicionales], axis=0)
 
 archivoPlano = archivoPlano.reset_index()
+create_excel(archivoPlano,"Archivo","Hoja1")
 archivoPlano['Concatenado'] = archivoPlano["Bodega"] + archivoPlano['Razón social proveedor']
 archivoPlano = archivoPlano.sort_values(by = ['Bodega','Razón social proveedor','SisFinCode'], ascending = [True,True,True],ignore_index=True )
 archivoPlanoCopia = archivoPlano.copy()
@@ -223,7 +225,11 @@ while indice<len(archivoPlano):
     consecutivo1Anterior = consecutivo1Actual
     indice+=1
 
-archivoPlano = archivoPlano[['consecutivoOC','documentoReferencia','consecutivoItem','Bodega','SisFinCode','Uni','Razón social proveedor','Precio Actual Compra','UM Compras','Unidades de compra','Semana','Adicional']]
+if semana%2==1:
+    archivoPlano = archivoPlano[['consecutivoOC','documentoReferencia','consecutivoItem','Bodega','SisFinCode','Uni','Razón social proveedor','Precio Actual Compra','UM Compras','Unidades de compra','Semana','Adicional']]
+else:
+    archivoPlano = archivoPlano[['consecutivoOC','documentoReferencia','consecutivoItem','Bodega','SisFinCode','Uni','Razón social proveedor','Precio Actual Compra','UM Compras','Unidades de compra','Adicional']]
+
 archivoPlano['tipoDocumento'] = tipoDeDocumento
 archivoPlano['Concepto'] = concepto
 archivoPlano['Grupo de clase de documento'] = grupoDeClaseDeDocumento
@@ -281,7 +287,9 @@ semanasDeAbastecimiento = get_excel_sh(siteAprovisionamiento,'Indicadores','Agro
 archivoPlano = pd.merge(archivoPlano,semanasDeAbastecimiento[['Bodega','Semanas de abastecimiento']],how='left',left_on= ['bodega'], right_on= ['Bodega'])
 
 #Colocarle la semana que corresponde a los productos de bichitos a las bodegas que se abastecen a una semana
+
 indice = 0
+archivoPlano['Semana'] = None
 while indice<len(archivoPlano):
     item = archivoPlano['item'][indice]
     semanaAbastecimiento = archivoPlano['Semanas de abastecimiento'][indice]
@@ -289,7 +297,6 @@ while indice<len(archivoPlano):
         if semanaAbastecimiento == 1:
             archivoPlano['Semana'][indice] = semana+2
     indice+=1
-
 calendarioBichos = calendario[calendario["año"] == año]
 calendarioBichos = calendarioBichos[calendarioBichos['Dia semana'].isin(['Friday', 'viernes'])]
 palabraSemana = 'Semana'
