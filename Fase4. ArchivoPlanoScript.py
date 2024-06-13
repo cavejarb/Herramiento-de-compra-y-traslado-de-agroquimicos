@@ -166,15 +166,19 @@ for folderI in foldersComprador:
                 dataframes.append(df)
                 archivoPlano = pd.concat(dataframes)
 
+
 #Incluir productos adicionales de semana + 1
-productosAdicionales = get_excel_sh(siteAprovisionamiento,año,f'Semana{semana}',f'Productos adicionales semana {semana+1}','Adicionales.xlsx','Hoja1',3)
+if adicionales==1:
+    productosAdicionales = get_excel_sh(siteAprovisionamiento,año,f'Semana{semana}',f'Productos adicionales semana {semana+1}','Adicionales.xlsx','Hoja1',3)
+else:
+    productosAdicionales = get_excel_sh(siteAprovisionamiento,año,f'Semana{semana}/Adicionales',f'Productos adicionales semana {semana+1}','Adicionales.xlsx','Hoja1',3)
+   
 productosAdicionales = productosAdicionales[['Bodega','SisFinCode','Quimico','Uni','Dens','Semanas de abastecimiento','Necesidad de compra (inv)','Necesidad inventario','Razón social proveedor','UM Compras','Descripción UMCompras','Precio Actual Compra','Factor conversión','Unidades de compra','Costo compra total','Inventario suplido']]
 productosAdicionales['Adicional'] = 'Si'
 archivoPlano['Adicional'] = 'No'
 archivoPlano = pd.concat([archivoPlano, productosAdicionales], axis=0)
 
 archivoPlano = archivoPlano.reset_index()
-create_excel(archivoPlano,"Archivo","Hoja1")
 archivoPlano['Concatenado'] = archivoPlano["Bodega"] + archivoPlano['Razón social proveedor']
 archivoPlano = archivoPlano.sort_values(by = ['Bodega','Razón social proveedor','SisFinCode'], ascending = [True,True,True],ignore_index=True )
 archivoPlanoCopia = archivoPlano.copy()
@@ -306,6 +310,7 @@ archivoPlano = pd.merge(archivoPlano,calendarioBichos[['Fecha','semana','año','
 archivoPlano['Fecha'] = archivoPlano['Fecha'].fillna(today)
 archivoPlano[['Fecha']] = archivoPlano[["Fecha"]].astype(str)
 archivoPlano['Fecha'] = archivoPlano['Fecha'].apply(lambda x:dateToString(str(x)))
+
 
 for i in listBichitos:
     archivoPlano['fechaEntrega'] = np.where(archivoPlano['item'] == i,archivoPlano['Fecha'],archivoPlano['fechaEntrega'])
