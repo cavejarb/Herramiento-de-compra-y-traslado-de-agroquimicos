@@ -55,8 +55,10 @@ def get_excel_sh(site, folder:str, namefile:str, sheetname:str,typeFolder:int,fo
         folder = site.Folder(f'Shared%20Documents/Indicadores/Agroquímicos/Productos vencidos/{folder}/{folder2}')
     elif typeFolder==10:
         folder = site.Folder(f'Shared%20Documents/Indicadores/Agroquímicos/Inventario en almacenes/{folder}/{folder2}')
-    else:
+    elif typeFolder==11:
         folder = site.Folder(f'Shared%20Documents/Indicadores/Agroquímicos/Cierre fincas/{folder}/{folder2}')
+    else:
+        folder = site.Folder(f'Shared%20Documents/Indicadores/Agroquímicos/Presupuestos/{folder}/{folder2}')
     df= pd.read_excel(folder.get_file(namefile), sheet_name=sheetname)
     return df 
 
@@ -120,6 +122,16 @@ def obtenerConsumos(siteF,añoF,semanaF,semanaInventarioF,diccionarioFincasF,col
         consumosF = get_excel_sh(siteF,añoF,f'Semana{semanaF}.xlsx','Sheet',4,f'Semana{semanaInventarioF}')
     else:
         consumosF = get_excel_sh(siteF,añoF,f'Semana{semanaF}.xlsx','Sheet',4,f'Semana{semanaInventarioF}/Adicionales')
+    consumosF = eliminarPrimeraFila(consumosF,3)
+    consumosF = pd.merge(consumosF, diccionarioFincasF, how='left' ,left_on= [columnaMerge], right_on= [columnaMerge])
+    consumosF.drop(['Pesado'], inplace=True, axis=1)
+    return consumosF
+
+def obtenerPresupuesto(siteF,añoF,semanaF,semanaInventarioF,diccionarioFincasF,columnaMerge,adicionalesF):
+    if adicionalesF==1:
+        consumosF = get_excel_sh(siteF,añoF,f'Semana{semanaF}.xlsx','Sheet',12,f'Semana{semanaInventarioF}')
+    else:
+        consumosF = get_excel_sh(siteF,añoF,f'Semana{semanaF}.xlsx','Sheet',12,f'Semana{semanaInventarioF}/Adicionales')
     consumosF = eliminarPrimeraFila(consumosF,3)
     consumosF = pd.merge(consumosF, diccionarioFincasF, how='left' ,left_on= [columnaMerge], right_on= [columnaMerge])
     consumosF.drop(['Pesado'], inplace=True, axis=1)
@@ -302,7 +314,9 @@ inventarioAlmacenes['Agroquimico'] = np.where(inventarioAlmacenes['Agroquimico']
 #-----------Consumos-------------------------#
 diccionarioFincas = get_excel_sh(site,'Agroquímicos','Diccionarios.xlsx','Fincas',1,'Parametro')
 consumos = obtenerConsumos(site,año,semana,semanaInventario,diccionarioFincas,"Bodega",adicionales)
+presupuestos = obtenerPresupuesto(site,año,semana,semanaInventario,diccionarioFincas,"Bodega",adicionales)
 
+#Esto toca volverlo función para la aplicación
 if semanaInventario%2==1:
     consumos2 = obtenerConsumos(site,año,semana+1,semanaInventario,diccionarioFincas,"Bodega",adicionales)
     consumos2.rename(columns = {'Cantidad':f'Consumo Semana ({semana+1})'}, inplace = True)
@@ -310,9 +324,24 @@ if semanaInventario%2==1:
     consumos = pd.merge(consumos, consumos2, how='outer' ,left_on= ['Bodega','Finca','SisFinCode','Quimico','Uni','Dens'], right_on= ['Bodega','Finca','SisFinCode','Quimico','Uni','Dens'])
     consumos[f'Consumo Semana ({semana+1})'] = consumos[f'Consumo Semana ({semana+1})'].fillna(0)
     consumos['Semanas de abastecimiento'] = np.where(consumos['Semanas de abastecimiento_x'].fillna(0) == consumos['Semanas de abastecimiento_y'].fillna(0),consumos['Semanas de abastecimiento_x'],consumos['Semanas de abastecimiento_x'].fillna(0)+consumos['Semanas de abastecimiento_y'].fillna(0))
+    consumos['Presupuesto'] = consumos['Presupuesto_x'].combine_first(consumos['Presupuesto_y'])
+
+#Parte presupuestos (función replicable)
+    presupuestos2 = obtenerPresupuesto(site,año,semana+1,semanaInventario,diccionarioFincas,"Bodega",adicionales)
+    presupuestos2.rename(columns = {'Cantidad':f'Consumo Semana ({semana+1})'}, inplace = True)
+    presupuestos2 = presupuestos2[presupuestos2["Semanas de abastecimiento"] == 2]
+    presupuestos = pd.merge(presupuestos, presupuestos2, how='outer' ,left_on= ['Bodega','Finca','SisFinCode','Quimico','Uni','Dens'], right_on= ['Bodega','Finca','SisFinCode','Quimico','Uni','Dens'])
+    presupuestos[f'Consumo Semana ({semana+1})'] = presupuestos[f'Consumo Semana ({semana+1})'].fillna(0)
+    presupuestos['Semanas de abastecimiento'] = np.where(presupuestos['Semanas de abastecimiento_x'].fillna(0) == presupuestos['Semanas de abastecimiento_y'].fillna(0),presupuestos['Semanas de abastecimiento_x'],presupuestos['Semanas de abastecimiento_x'].fillna(0)+presupuestos['Semanas de abastecimiento_y'].fillna(0))
+    presupuestos['Presupuesto'] = presupuestos['Presupuesto_x'].combine_first(presupuestos['Presupuesto_y'])
+
 else:
     consumos = consumos[consumos["Semanas de abastecimiento"] == 1]
+    presupuestos = presupuestos[presupuestos["Semanas de abastecimiento"] == 1]
 
+consumos = consumos[consumos["Presupuesto"] == 'No']
+presupuestos = presupuestos[presupuestos["Presupuesto"] == 'Si']
+consumos = pd.concat([consumos, presupuestos], ignore_index=True)
 consumos['Uni']= consumos['Uni'].str.upper()
 consumos['Cantidad'] = consumos['Cantidad'].fillna(0)
 if semanaInventario%2==1: 
@@ -583,6 +612,7 @@ while i==0:
     productosParaTraslado.drop(['Concatenado',"Indice",'Inventario de Traslado','Cant. disponible1'], inplace=True, axis=1)
 
 create_excel(trasladosPunta,"Productos para traslado IN021","Hoja1")
+exit()
 
 if adicionales==1:
     file_upload_to_sharepoint(siteDBLogistics,año,semanaInventario,f"OfertaDemandaSemana{semanaInventario}",2)

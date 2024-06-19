@@ -405,6 +405,7 @@ baseCotizacionesMelaza['Autorizado'] = baseCotizacionesMelaza['Autorizado'].fill
 baseCotizacionesMelaza = baseCotizacionesMelaza[baseCotizacionesMelaza["Autorizado"] == "Si"]
 baseCotizacionesMelaza = baseCotizacionesMelaza[baseCotizacionesMelaza["Agotado"].isnull()]
 baseCotizacionesMelaza = baseCotizacionesMelaza[baseCotizacionesMelaza["Item"] == 1027]
+print(baseCotizacionesMelaza)
  
 indice = 0
 inventarioSuplido = 0
@@ -429,6 +430,9 @@ demanda['Razón social proveedor 2'] = demanda['Razón social proveedor 2'].fill
 demanda['Precio Actual Compra 3'] = demanda['Precio Actual Compra 3'].fillna(0)
 demanda['Razón social proveedor'] = np.where(demanda['Razón social proveedor 2'] != 0,demanda['Razón social proveedor 2'],demanda['Razón social proveedor'])
 demanda['Precio Actual Compra'] = np.where(demanda['Precio Actual Compra 3'] != 0,demanda['Precio Actual Compra 3'],demanda['Precio Actual Compra'])
+
+create_excel(demanda,"QuePasoMelazita","Hoja1")
+exit()
 
 #Dejar columnas de dataframes finales a exportar
 def definirColumnasDataframeOrdenes(dataframe):
