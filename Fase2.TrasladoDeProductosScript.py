@@ -288,6 +288,8 @@ aviso3 = print('2: Si se van a realizar adicionales')
 adicionales = int(input("Escriba alguna de las 2 opciones anteriores: "))
 
 parametros = get_excel_sh(siteAprovisionamiento,'Indicadores','Agroquímicos','Diccionarios.xlsx','Parámetros',2)
+#dicFincas = get_excel_sh(siteAprovisionamiento,'Indicadores','Agroquímicos','Diccionarios.xlsx','Parámetros',2)
+
 añoConsumo = parametros['Valor'][0]
 semanaDescarga = parametros['Valor'][1]
 #if semanaDescarga == 51: semanaConsumo =1
@@ -327,6 +329,19 @@ demanda = pd.merge(demanda, trayectos, how='left' ,left_on= ['Finca Disponible',
 demanda['Origen-Destino'] = demanda['Finca Disponible']+demanda['Finca Necesidad']
 demanda['Inventario Disponible (peso)'] = np.where(demanda['Uni'] == "GR",demanda[f'Inventario Disponible'],demanda[f'Inventario Disponible']*demanda['Dens'])
 demanda['Inventario Faltante (peso)'] = np.where(demanda['Uni'] == "GR",demanda[f'Inventario Faltante'],demanda[f'Inventario Faltante']*demanda['Dens'])
+
+dicFincas = get_excel_sh(siteAprovisionamiento,'Indicadores','Agroquímicos','Diccionarios.xlsx','Fincas',2)
+dicFincas2 = dicFincas.copy()
+
+dicFincas.rename(columns = {'Bodega':'Bodega eliminar','Zona':'Zona necesidad'}, inplace = True)
+dicFincas2.rename(columns = {'Bodega':'Bodega eliminar 2','Zona':'Zona disponible'}, inplace = True)
+
+demanda = pd.merge(demanda, dicFincas[['Bodega eliminar','Zona necesidad']], how='left' ,left_on= ['Bodega Necesidad'], right_on= ['Bodega eliminar'])
+demanda = pd.merge(demanda, dicFincas2[['Bodega eliminar 2','Zona disponible']], how='left' ,left_on= ['Bodega Disponible'], right_on= ['Bodega eliminar 2'])
+
+demanda = demanda[(demanda['Zona necesidad'] != 'No aplica') & (demanda['Zona disponible'] != 'No aplica')]
+demanda = demanda[demanda['Zona necesidad'] == demanda['Zona disponible']]
+demanda.drop(['Bodega eliminar','Zona necesidad','Bodega eliminar 2','Zona disponible'], inplace=True, axis=1)
 
 #-----------------------------------------Fase 2.1 (Generar los trayectos individuales de mayor ganancia)-------------------#
 origenes =  list(pd.unique(demanda["Finca Disponible"]))
@@ -379,8 +394,6 @@ for i in range(len(demanda)):
 
 demanda = demanda[['Bodega Disponible','Finca Disponible','SisFinCode','Quimico','Uni','Dens',f'Inventario Disponible (peso)','Bodega Necesidad','Finca Necesidad',f'Inventario Faltante (peso)','Fecha último movimiento',f'Inventario de Traslado (peso)','Costo promedio unitario','Ahorro Traslado','Distancia','Costo transporte']]
 trayectosProductos.rename(columns = {'Inventario Disponible (peso)':f'Inventario Disponible (peso)','Inventario Faltante (peso)':f'Inventario Faltante (peso)'}, inplace = True)
-print(trayectosProductos)
-create_excel(trayectosProductos,"Trayectos","Hoja1")
 trayectosProductos = trayectosProductos[['Bodega Disponible','Finca Disponible','SisFinCode','Quimico','Uni','Dens',f'Inventario Disponible (peso)','Bodega Necesidad','Finca Necesidad',f'Inventario Faltante (peso)','Fecha último movimiento',f'Inventario de Traslado (peso)','Inventario de Traslado','Costo promedio unitario']]
 trayectosProductos['Costo carga'] = trayectosProductos['Inventario de Traslado'] * trayectosProductos['Costo promedio unitario']
 trayectosProductos = trayectosProductos[trayectosProductos["Costo carga"] >= 30000]
