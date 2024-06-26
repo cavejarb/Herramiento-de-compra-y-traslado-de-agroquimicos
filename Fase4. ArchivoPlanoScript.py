@@ -328,7 +328,6 @@ else:
     create_excel(archivoPlanoExcelDoc,f"OrdenCompraSemana{semana}Adicionales","Documentos")
     create_sheet(archivoPlanoExcelMov,f"OrdenCompraSemana{semana}Adicionales",'Movimientos')    
 
-exit()
 if adicionales==1:
     file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semana}',f"ArchivoPlanoSemana{semana}")
     file_upload_to_sharepoint(siteAprovisionamiento,año,f'Semana{semana}',f"OrdenCompraSemana{semana}")
