@@ -611,13 +611,12 @@ while i==0:
     productosParaTraslado = productosParaTraslado[productosParaTraslado['SisFinCode'].isin(productosFaltantesPorSuplir)]
     productosParaTraslado.drop(['Concatenado',"Indice",'Inventario de Traslado','Cant. disponible1'], inplace=True, axis=1)
 
-create_excel(trasladosPunta,"Productos para traslado IN021","Hoja1")
-exit()
+create_excel(productosParaTraslado,"Productos para traslado IN021","Hoja1")
 
 if adicionales==1:
     file_upload_to_sharepoint(siteDBLogistics,año,semanaInventario,f"OfertaDemandaSemana{semanaInventario}",2)
     file_upload_to_sharepoint(site,año,semanaInventario,"Inventario disponible-faltante",1)
-    file_upload_to_sharepoint(site,año,semanaInventario,"Productos para traslado IN021",1)
+    #file_upload_to_sharepoint(site,año,semanaInventario,"Productos para traslado IN021",1)
 else:
     file_upload_to_sharepoint(siteDBLogistics,f'{año}/Adicionales',semanaInventario,f"OfertaDemandaSemana{semanaInventario}",2)
     file_upload_to_sharepoint(site,año,f'{semanaInventario}/Adicionales',"Inventario disponible-faltante",1)
